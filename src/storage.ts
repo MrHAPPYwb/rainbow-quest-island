@@ -42,10 +42,27 @@ export function createBlankProgress(): LearnerProgress {
   }
 }
 
+function normalizeProgress(progress: LearnerProgress) {
+  const blank = createBlankProgress()
+
+  return {
+    ...blank,
+    ...progress,
+    subjectStars: {
+      ...blank.subjectStars,
+      ...progress.subjectStars,
+    },
+    completedTaskIds: Array.isArray(progress.completedTaskIds)
+      ? progress.completedTaskIds
+      : [],
+    petName: progress.petName || blank.petName,
+  }
+}
+
 export async function loadProgress() {
   const stored = await db.progress.get('main')
   if (stored) {
-    return stored
+    return normalizeProgress(stored)
   }
 
   const blank = createBlankProgress()
@@ -88,7 +105,7 @@ export async function recordTaskDone(
       progress.lastPlayed === today
         ? progress.streakDays || 1
         : progress.streakDays + 1,
-    petLevel: Math.max(1, Math.floor(nextStars / 6) + 1),
+    petLevel: Math.max(1, Math.floor(nextStars / 9) + 1),
   }
 
   await saveProgress(nextProgress)
