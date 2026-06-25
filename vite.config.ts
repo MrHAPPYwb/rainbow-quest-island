@@ -32,7 +32,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,json}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,webp,json}'],
+        globIgnores: ['**/rainbow-quest-world.png'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,

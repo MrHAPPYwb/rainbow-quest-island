@@ -3,6 +3,7 @@ logs
 *.log
 console-warnings.txt
 rainbow-quest-mobile.png
+public/assets/rainbow-quest-world.png
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

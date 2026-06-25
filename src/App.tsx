@@ -1,18 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  BookOpen,
   Check,
   ChevronRight,
   Coins,
   Gem,
   Home,
-  Paintbrush,
   RotateCcw,
-  Scroll,
   ShieldCheck,
   ShoppingCart,
   Sparkles,
-  Store,
   Volume2,
 } from 'lucide-react'
 import './App.css'
@@ -24,8 +20,6 @@ import {
   type MarketItem,
   type SubjectId,
 } from './content'
-import { HanziPractice } from './components/HanziPractice'
-import { IslandMap } from './components/IslandMap'
 import {
   createBlankProgress,
   loadProgress,
@@ -34,9 +28,15 @@ import {
   type LearnerProgress,
 } from './storage'
 
-type Feedback = {
-  kind: 'idle' | 'correct' | 'try-again'
+type Toast = {
+  kind: 'guide' | 'win' | 'miss'
   text: string
+}
+
+const zoneCopy: Record<SubjectId, { label: string; marker: string }> = {
+  chinese: { label: '古字洞', marker: '刻' },
+  math: { label: '玩具铺', marker: '买' },
+  english: { label: '宝石湾', marker: '拼' },
 }
 
 function speak(text: string, lang: string) {
@@ -58,36 +58,41 @@ function sameItems(a: string[], b: string[]) {
 function ParentPanel({
   progress,
   onReset,
+  onClose,
 }: {
   progress: LearnerProgress
   onReset: () => void
+  onClose: () => void
 }) {
   const totalDone = progress.completedTaskIds.length
 
   return (
-    <section className="parent-panel" aria-label="家长面板">
-      <div className="panel-heading">
-        <ShieldCheck size={19} />
-        <h2>家长面板</h2>
+    <section className="parent-sheet" aria-label="家长面板">
+      <div className="sheet-head">
+        <div>
+          <ShieldCheck size={18} />
+          <h2>家长面板</h2>
+        </div>
+        <button type="button" onClick={onClose}>
+          关闭
+        </button>
       </div>
       <div className="parent-grid">
         <div>
-          <span className="metric">{progress.stars}</span>
-          <small>星星</small>
+          <strong>{progress.stars}</strong>
+          <span>星光</span>
         </div>
         <div>
-          <span className="metric">{progress.streakDays}</span>
-          <small>连续天数</small>
+          <strong>{progress.streakDays}</strong>
+          <span>连续天</span>
         </div>
         <div>
-          <span className="metric">{totalDone}</span>
-          <small>完成任务</small>
+          <strong>{totalDone}</strong>
+          <span>通关</span>
         </div>
       </div>
-      <p className="parent-note">
-        建议每天 8-12 分钟。进度只保存在本机，不上传孩子数据。
-      </p>
-      <button type="button" className="secondary-button" onClick={onReset}>
+      <p>建议每天玩 8-12 分钟。进度只保存在本机，不上传孩子数据。</p>
+      <button type="button" className="reset-button" onClick={onReset}>
         <RotateCcw size={17} />
         <span>重置进度</span>
       </button>
@@ -95,7 +100,7 @@ function ParentPanel({
   )
 }
 
-function PictographWorkshop({
+function GlyphQuest({
   task,
   completed,
   onComplete,
@@ -117,62 +122,44 @@ function PictographWorkshop({
 
   const glyphData = glyph
   const current = glyphData.steps[step]
-  const isLastStep = step === glyphData.steps.length - 1
+  const isLast = step === glyphData.steps.length - 1
 
-  function advance() {
-    if (isLastStep) {
-      onComplete(`你把${glyphData.objectName}变成了“${glyphData.character}”。`)
+  function carve() {
+    if (completed) {
       return
     }
 
-    setStep((currentStep) => currentStep + 1)
+    if (isLast) {
+      onComplete(`你把${glyphData.objectName}刻成了“${glyphData.character}”。`)
+      return
+    }
+
+    setStep((value) => value + 1)
   }
 
   return (
-    <section className="glyph-game" aria-label={`${glyphData.character} 造字游戏`}>
-      <div className="craft-board">
-        <div>
-          <span className="mini-label">{current.title}</span>
-          <h3>{current.text}</h3>
-        </div>
-        <button
-          type="button"
-          className="primary-action"
-          onClick={advance}
-          disabled={completed}
-        >
-          <Paintbrush size={18} />
-          <span>{completed ? '已刻好' : current.action}</span>
-        </button>
+    <div className="mini-game glyph-quest">
+      <div className="stone-stage">
+        <div className="stone-glow" />
+        <span className="ancient-shape">{current.shape}</span>
+        <strong>{current.title}</strong>
       </div>
-
-      <div className={`glyph-scene ${glyphData.scene}`}>
-        <div className="sky-line">
-          <span>{glyphData.objectName}</span>
-          <strong>{current.shape}</strong>
-        </div>
-        <div className="oracle-tablet">
-          <Scroll size={18} />
-          <p>{glyphData.craftLine}</p>
-        </div>
+      <div className="quest-text">
+        <h2>{task.title}</h2>
+        <p>{current.text}</p>
       </div>
-
-      <div className="glyph-steps">
-        {glyphData.steps.map((glyphStep, index) => (
-          <div
-            className={index <= step ? 'glyph-step active' : 'glyph-step'}
-            key={glyphStep.title}
-          >
-            <span>{glyphStep.shape}</span>
-            <small>{glyphStep.title}</small>
-          </div>
+      <div className="evolve-track">
+        {glyphData.steps.map((part, index) => (
+          <span className={index <= step ? 'on' : ''} key={part.title}>
+            {part.shape}
+          </span>
         ))}
       </div>
-
-      <div className="hanzi-wrap">
-        <HanziPractice character={glyphData.character} />
-      </div>
-    </section>
+      <button type="button" className="game-action" onClick={carve}>
+        <Sparkles size={18} />
+        <span>{completed ? '已点亮' : current.action}</span>
+      </button>
+    </div>
   )
 }
 
@@ -188,12 +175,12 @@ function WordTreasureQuest({
   const english = task.english
   const [pickedLetters, setPickedLetters] = useState<string[]>([])
   const [pickedIndexes, setPickedIndexes] = useState<number[]>([])
-  const [localHint, setLocalHint] = useState('宝箱在等正确的字母顺序。')
+  const [hint, setHint] = useState('按顺序点亮字母宝石。')
 
   useEffect(() => {
     setPickedLetters([])
     setPickedIndexes([])
-    setLocalHint('宝箱在等正确的字母顺序。')
+    setHint('按顺序点亮字母宝石。')
   }, [task.id])
 
   if (!english) {
@@ -209,55 +196,47 @@ function WordTreasureQuest({
 
     const expected = englishData.word[pickedLetters.length]
     if (letter !== expected) {
-      setLocalHint(`这颗 ${letter.toUpperCase()} 宝石还没到位置。`)
+      setHint(`这颗 ${letter.toUpperCase()} 宝石还没发光。`)
       return
     }
 
     const nextLetters = [...pickedLetters, letter]
-    const nextIndexes = [...pickedIndexes, index]
     setPickedLetters(nextLetters)
-    setPickedIndexes(nextIndexes)
-    setLocalHint('字母宝石正在发光。')
+    setPickedIndexes([...pickedIndexes, index])
+    setHint('宝箱的锁正在转动。')
 
     if (nextLetters.join('') === englishData.word) {
       speak(englishData.sentence, 'en-US')
-      onComplete(`你打开了${englishData.treasure}。`)
+      onComplete(`打开${englishData.treasure}。`)
     }
   }
 
   return (
-    <section className="treasure-game" aria-label={`${englishData.word} 拼词寻宝`}>
-      <div className={completed ? 'treasure-chest open' : 'treasure-chest'}>
-        <Gem size={32} />
+    <div className="mini-game treasure-quest">
+      <div className={completed ? 'chest open' : 'chest'}>
+        <Gem size={28} />
         <div>
-          <span>宝藏线索</span>
-          <strong>{englishData.clue}</strong>
-          <small>{englishData.meaning}</small>
+          <h2>{task.title}</h2>
+          <p>{englishData.clue}</p>
         </div>
         <button
           type="button"
-          className="listen-button"
+          className="round-sound"
           onClick={() => speak(englishData.sound, 'en-US')}
         >
-          <Volume2 size={20} />
+          <Volume2 size={19} />
         </button>
       </div>
-
-      <div className="word-slots">
+      <div className="word-runes">
         {englishData.word.split('').map((letter, index) => (
-          <span className="word-slot" key={`${letter}-${index}`}>
-            {pickedLetters[index] ?? ''}
-          </span>
+          <span key={`${letter}-${index}`}>{pickedLetters[index] ?? ''}</span>
         ))}
       </div>
-
-      <div className="letter-bank">
+      <div className="gem-bank">
         {englishData.letters.map((letter, index) => (
           <button
             type="button"
-            className={
-              pickedIndexes.includes(index) ? 'letter-stone used' : 'letter-stone'
-            }
+            className={pickedIndexes.includes(index) ? 'gem used' : 'gem'}
             key={`${letter}-${index}`}
             onClick={() => pickLetter(letter, index)}
           >
@@ -265,13 +244,12 @@ function WordTreasureQuest({
           </button>
         ))}
       </div>
-
-      <p className="local-hint">{completed ? englishData.sentence : localHint}</p>
-    </section>
+      <p className="quest-hint">{completed ? englishData.sentence : hint}</p>
+    </div>
   )
 }
 
-function MarketShelf({
+function MarketItemButton({
   item,
   selected,
   onToggle,
@@ -283,17 +261,17 @@ function MarketShelf({
   return (
     <button
       type="button"
-      className={selected ? 'market-item selected' : 'market-item'}
+      className={selected ? 'shelf-item selected' : 'shelf-item'}
       onClick={onToggle}
     >
-      <span className="item-icon">{item.icon}</span>
+      <span>{item.icon}</span>
       <strong>{item.name}</strong>
       <small>{item.price} 元</small>
     </button>
   )
 }
 
-function ToyMarketGame({
+function ToyMarketQuest({
   task,
   completed,
   onComplete,
@@ -304,11 +282,11 @@ function ToyMarketGame({
 }) {
   const math = task.math
   const [basket, setBasket] = useState<string[]>([])
-  const [shopHint, setShopHint] = useState('把清单上的物品放进购物篮。')
+  const [hint, setHint] = useState('把清单上的物品放进购物车。')
 
   useEffect(() => {
     setBasket([])
-    setShopHint('把清单上的物品放进购物篮。')
+    setHint('把清单上的物品放进购物车。')
   }, [task.id])
 
   if (!math) {
@@ -322,89 +300,70 @@ function ToyMarketGame({
     mathData.targetItemIds.includes(item.id),
   )
   const targetTotal = targetItems.reduce((sum, item) => sum + item.price, 0)
-  const overBudget = total > mathData.budget
 
-  function toggleItem(itemId: string) {
+  function toggle(itemId: string) {
     if (completed) {
       return
     }
 
-    setBasket((current) =>
-      current.includes(itemId)
-        ? current.filter((id) => id !== itemId)
-        : [...current, itemId],
+    setBasket((items) =>
+      items.includes(itemId)
+        ? items.filter((id) => id !== itemId)
+        : [...items, itemId],
     )
   }
 
   function checkout() {
+    if (completed) {
+      return
+    }
+
     if (sameItems(basket, mathData.targetItemIds) && total === targetTotal) {
       onComplete(`结账成功，一共 ${targetTotal} 元。`)
       return
     }
 
-    if (overBudget) {
-      setShopHint('购物篮超预算了，先拿出一件试试。')
+    if (total > mathData.budget) {
+      setHint('购物车超预算了，拿出一件试试。')
       return
     }
 
-    setShopHint('清单还没买对，看看需要哪些物品。')
+    setHint('清单还没买齐，看看发光的目标。')
   }
 
   return (
-    <section className="market-game" aria-label={`${mathData.shopName} 购物游戏`}>
-      <div className="shop-window">
-        <Store size={24} />
+    <div className="mini-game market-quest">
+      <div className="shop-order">
         <div>
-          <span>{mathData.shopName}</span>
-          <strong>{mathData.story}</strong>
+          <h2>{task.title}</h2>
+          <p>{targetItems.map((item) => item.name).join(' + ')}</p>
+        </div>
+        <div className="price-badge">
+          <Coins size={17} />
+          <strong>{total}</strong>
+          <span>/ {mathData.budget}</span>
         </div>
       </div>
-
-      <div className="shopping-list">
-        <span>购物清单</span>
-        <strong>{targetItems.map((item) => item.name).join(' + ')}</strong>
-        <small>预算 {mathData.budget} 元</small>
-      </div>
-
-      <div className="market-grid">
+      <div className="shelf-grid">
         {mathData.items.map((item) => (
-          <MarketShelf
+          <MarketItemButton
             item={item}
             selected={basket.includes(item.id)}
             key={item.id}
-            onToggle={() => toggleItem(item.id)}
+            onToggle={() => toggle(item.id)}
           />
         ))}
       </div>
-
-      <div className="checkout-line">
-        <div className="coin-board" aria-label={`当前总价 ${total} 元`}>
-          <Coins size={18} />
-          <strong>{total} 元</strong>
-          <span className={overBudget ? 'budget over' : 'budget'}>
-            / {mathData.budget} 元
-          </span>
-        </div>
-        <button type="button" className="primary-action" onClick={checkout}>
-          <ShoppingCart size={18} />
-          <span>{completed ? '已结账' : '去结账'}</span>
-        </button>
-      </div>
-
-      <div className="coin-row">
-        {mathData.coins.map((_, index) => (
-          <span className={index < total ? 'coin active' : 'coin'} key={index}>
-            1
-          </span>
-        ))}
-      </div>
-
-      <p className="local-hint">{completed ? `刚好 ${targetTotal} 元。` : shopHint}</p>
-    </section>
+      <button type="button" className="game-action" onClick={checkout}>
+        <ShoppingCart size={18} />
+        <span>{completed ? '已结账' : '推车结账'}</span>
+      </button>
+      <p className="quest-hint">{completed ? `刚好 ${targetTotal} 元。` : hint}</p>
+    </div>
   )
 }
 
-function LearningScene({
+function MiniGame({
   task,
   completed,
   onComplete,
@@ -415,11 +374,7 @@ function LearningScene({
 }) {
   if (task.mode === 'glyph') {
     return (
-      <PictographWorkshop
-        task={task}
-        completed={completed}
-        onComplete={onComplete}
-      />
+      <GlyphQuest task={task} completed={completed} onComplete={onComplete} />
     )
   }
 
@@ -434,7 +389,7 @@ function LearningScene({
   }
 
   return (
-    <ToyMarketGame task={task} completed={completed} onComplete={onComplete} />
+    <ToyMarketQuest task={task} completed={completed} onComplete={onComplete} />
   )
 }
 
@@ -442,9 +397,9 @@ function App() {
   const [progress, setProgress] = useState<LearnerProgress>(createBlankProgress)
   const [activeSubject, setActiveSubject] = useState<SubjectId>('chinese')
   const [taskIndex, setTaskIndex] = useState(0)
-  const [feedback, setFeedback] = useState<Feedback>({
-    kind: 'idle',
-    text: '从地图上选一站，开始今天的任务。',
+  const [toast, setToast] = useState<Toast>({
+    kind: 'guide',
+    text: '点亮一个区域，开始今天的冒险。',
   })
   const [parentOpen, setParentOpen] = useState(false)
   const subjectTasks = useMemo(
@@ -452,12 +407,10 @@ function App() {
     [activeSubject],
   )
   const task = subjectTasks[taskIndex % subjectTasks.length]
-  const activeMeta = subjects[activeSubject]
-  const dailyTasks = getDailyTasks()
-  const dailyDone = dailyTasks.filter((dailyTask) =>
+  const completed = progress.completedTaskIds.includes(task.id)
+  const dailyDone = getDailyTasks().filter((dailyTask) =>
     progress.completedTaskIds.includes(dailyTask.id),
   ).length
-  const completed = progress.completedTaskIds.includes(task.id)
 
   useEffect(() => {
     let mounted = true
@@ -477,119 +430,130 @@ function App() {
   }, [activeSubject])
 
   useEffect(() => {
-    setFeedback({
-      kind: completed ? 'correct' : 'idle',
-      text: completed ? '这一站已经点亮，可以继续下一站。' : activeMeta.promise,
+    setToast({
+      kind: completed ? 'win' : 'guide',
+      text: completed
+        ? '这个区域已经亮起来了，去下一关吧。'
+        : subjects[activeSubject].promise,
     })
-  }, [activeMeta.promise, completed, task.id])
+  }, [activeSubject, completed, task.id])
 
-  async function handleComplete(message: string) {
-    if (progress.completedTaskIds.includes(task.id)) {
-      setFeedback({ kind: 'correct', text: message })
-      return
+  async function completeQuest(message: string) {
+    if (!progress.completedTaskIds.includes(task.id)) {
+      const nextProgress = await recordTaskDone(
+        progress,
+        task.id,
+        task.subject,
+        task.reward,
+      )
+      setProgress(nextProgress)
     }
 
-    const nextProgress = await recordTaskDone(
-      progress,
-      task.id,
-      task.subject,
-      task.reward,
-    )
-    setProgress(nextProgress)
-    setFeedback({ kind: 'correct', text: message })
+    setToast({ kind: 'win', text: message })
   }
 
-  function nextTask() {
-    setTaskIndex((current) => current + 1)
+  function pickZone(subject: SubjectId) {
+    setActiveSubject(subject)
+    setToast({ kind: 'guide', text: subjects[subject].promise })
+  }
+
+  function nextQuest() {
+    setTaskIndex((index) => index + 1)
   }
 
   async function handleReset() {
     const blank = await resetProgress()
     setProgress(blank)
-    setFeedback({ kind: 'idle', text: activeMeta.promise })
+    setToast({ kind: 'guide', text: subjects[activeSubject].promise })
   }
 
   return (
-    <main className="app-shell">
-      <section className="top-bar" aria-label="当前状态">
-        <div className="brand-mark">
-          <Sparkles size={20} />
-          <span>彩虹任务岛</span>
+    <main className={`game-screen ${activeSubject}`}>
+      <img
+        className="world-art"
+        src="assets/rainbow-quest-world.webp"
+        alt=""
+        aria-hidden="true"
+      />
+      <div className="world-shade" />
+      <div className="spark-field" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+
+      <header className="game-hud" aria-label="游戏状态">
+        <div className="player-chip">
+          <div className="avatar-face">露</div>
+          <div>
+            <strong>彩虹任务岛</strong>
+            <span>今日 {dailyDone}/3</span>
+          </div>
         </div>
         <button
           type="button"
-          className="parent-toggle"
-          onClick={() => setParentOpen((open) => !open)}
+          className="hud-button"
+          onClick={() => setParentOpen(true)}
         >
           <Home size={18} />
-          <span>家长</span>
         </button>
-      </section>
+      </header>
 
-      <section className="hero-band" aria-label="今日任务">
-        <div className="mission-copy">
-          <span className="eyebrow">今日 {dailyDone}/3</span>
-          <h1>{activeMeta.place}</h1>
-          <p>{activeMeta.promise}</p>
-        </div>
-        <div className="pet-badge" aria-label={`宠物等级 ${progress.petLevel}`}>
-          <span>Lv.{progress.petLevel}</span>
-          <strong>{progress.petName}</strong>
-        </div>
-      </section>
-
-      <IslandMap
-        activeSubject={activeSubject}
-        progress={progress}
-        onSelectSubject={setActiveSubject}
-      />
-
-      <section className="subject-tabs" aria-label="学科选择">
+      <section className="zone-layer" aria-label="岛屿区域">
         {(Object.keys(subjects) as SubjectId[]).map((subject) => (
           <button
             type="button"
+            className={
+              subject === activeSubject ? `zone-pin ${subject} active` : `zone-pin ${subject}`
+            }
             key={subject}
-            className={subject === activeSubject ? 'tab active' : 'tab'}
-            onClick={() => setActiveSubject(subject)}
+            onClick={() => pickZone(subject)}
           >
-            {subjects[subject].shortName}
+            <span>{zoneCopy[subject].marker}</span>
+            <strong>{zoneCopy[subject].label}</strong>
           </button>
         ))}
       </section>
 
-      <section className={`task-card ${task.mode}`} aria-live="polite">
-        <div className="task-head">
+      <div className="companion" aria-hidden="true">
+        <div className="companion-face">小露</div>
+      </div>
+
+      <section className="quest-dock" aria-label="当前关卡">
+        <div className="dock-title">
           <div>
-            <span className="subject-pill">{activeMeta.name}</span>
-            <h2>{task.title}</h2>
+            <span>{subjects[activeSubject].name}</span>
+            <h1>{task.title}</h1>
           </div>
-          <div className="reward-chip">+{task.reward}</div>
+          <div className="star-prize">+{task.reward}</div>
         </div>
 
-        <div className="prompt-box">
-          <BookOpen size={18} />
-          <p>{task.prompt}</p>
-        </div>
-
-        <LearningScene
+        <MiniGame
           task={task}
           completed={completed}
-          onComplete={(message) => void handleComplete(message)}
+          onComplete={(message) => void completeQuest(message)}
         />
 
-        <div className={`feedback ${feedback.kind}`}>
-          {feedback.kind === 'correct' ? <Check size={18} /> : <Sparkles size={18} />}
-          <span>{feedback.text}</span>
-          {feedback.kind === 'correct' && (
-            <button type="button" onClick={nextTask}>
-              <span>下一站</span>
-              <ChevronRight size={17} />
+        <div className={`toast ${toast.kind}`}>
+          {toast.kind === 'win' ? <Check size={17} /> : <Sparkles size={17} />}
+          <span>{toast.text}</span>
+          {toast.kind === 'win' && (
+            <button type="button" onClick={nextQuest}>
+              <span>下一关</span>
+              <ChevronRight size={16} />
             </button>
           )}
         </div>
       </section>
 
-      {parentOpen && <ParentPanel progress={progress} onReset={handleReset} />}
+      {parentOpen && (
+        <ParentPanel
+          progress={progress}
+          onReset={() => void handleReset()}
+          onClose={() => setParentOpen(false)}
+        />
+      )}
     </main>
   )
 }
